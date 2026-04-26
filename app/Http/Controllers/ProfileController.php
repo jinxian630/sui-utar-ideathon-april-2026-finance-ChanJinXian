@@ -74,6 +74,16 @@ class ProfileController extends Controller
 
         Auth::logout();
 
+        $user->forceFill([
+            'email' => 'deleted-user-' . $user->id . '-' . now()->timestamp . '@deleted.local',
+            'password' => null,
+            'wallet_address' => null,
+            'sui_address' => null,
+            'zk_pin_hash' => null,
+            'zk_subject' => null,
+            'remember_token' => null,
+        ])->save();
+
         $user->delete();
 
         $request->session()->invalidate();

@@ -106,6 +106,47 @@ class ProfileTest extends TestCase
         $this->assertNull($user->fresh());
     }
 
+    public function test_deleted_zklogin_user_can_register_again_with_new_pin(): void
+    {
+        $oldVerifier = hash('sha256', 'google-sub|zk@example.com|123456');
+        $newVerifier = hash('sha256', 'google-sub|zk@example.com|654321');
+
+        $user = User::factory()->create([
+            'email' => 'zk@example.com',
+            'password' => null,
+            'wallet_address' => '0x' . str_repeat('a', 64),
+            'zk_subject' => 'google-sub',
+            'zk_pin_hash' => Hash::make($oldVerifier),
+        ]);
+
+        $this->actingAs($user)
+            ->delete('/profile', [
+                'zk_pin' => '123456',
+            ])
+            ->assertRedirect('/');
+
+        $this->assertNull($user->fresh());
+
+        $this->postJson('/auth/zklogin', [
+            'wallet_address' => '0x' . str_repeat('b', 64),
+            'email' => 'zk@example.com',
+            'name' => 'ZK User Again',
+            'zk_subject' => 'google-sub',
+            'zk_pin_verifier' => $newVerifier,
+        ])->assertOk()
+            ->assertJson([
+                'redirect' => route('wallet.welcome'),
+            ]);
+
+        $newUser = User::where('email', 'zk@example.com')->firstOrFail();
+
+        $this->assertSame('ZK User Again', $newUser->name);
+        $this->assertSame('0x' . str_repeat('b', 64), $newUser->wallet_address);
+        $this->assertTrue(Hash::check($newVerifier, $newUser->zk_pin_hash));
+        $this->assertFalse(Hash::check($oldVerifier, $newUser->zk_pin_hash));
+        $this->assertAuthenticatedAs($newUser);
+    }
+
     public function test_passwordless_zklogin_user_cannot_delete_account_with_wrong_pin(): void
     {
         $pinVerifier = hash('sha256', 'google-sub|zk@example.com|123456');
