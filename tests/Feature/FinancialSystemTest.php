@@ -60,6 +60,38 @@ class FinancialSystemTest extends TestCase
         $user = User::factory()->create();
 
         $response = $this->actingAs($user)->post('/transactions', [
+            'description' => 'Salary',
+            'amount' => 15.50,
+            'type' => 'income',
+        ]);
+
+        $this->assertDatabaseHas('transaction', [
+            'description' => 'Salary',
+            'amount' => 15.50,
+            'type' => 'income',
+            'user_id' => $user->id,
+        ]);
+
+        $this->assertDatabaseMissing('savings_entries', [
+            'user_id' => $user->id,
+            'description' => 'Salary',
+        ]);
+
+        $transaction = Transaction::where('user_id', $user->id)->first();
+        $this->assertNull($transaction->savings_entry_id);
+        $this->assertEquals(15.50, (float) $user->fresh()->wallet_balance);
+        $this->assertEquals(0.00, (float) $user->fresh()->total_saved);
+        $this->assertDatabaseMissing('badges', [
+            'user_id' => $user->id,
+        ]);
+    }
+
+    public function test_user_can_create_expense_transaction_without_savings_history(): void
+    {
+        /** @var User $user */
+        $user = User::factory()->create(['wallet_balance' => 100.00, 'total_saved' => 0.00]);
+
+        $this->actingAs($user)->post('/transactions', [
             'description' => 'Buying Coffee',
             'amount' => 15.50,
             'type' => 'expense',
@@ -71,19 +103,50 @@ class FinancialSystemTest extends TestCase
             'type' => 'expense',
             'user_id' => $user->id,
         ]);
+
+        $this->assertDatabaseMissing('savings_entries', [
+            'user_id' => $user->id,
+            'description' => 'Buying Coffee',
+        ]);
+
+        $this->assertEquals(84.50, (float) $user->fresh()->wallet_balance);
+        $this->assertEquals(0.00, (float) $user->fresh()->total_saved);
+    }
+
+    public function test_expense_larger_than_wallet_is_rejected(): void
+    {
+        /** @var User $user */
+        $user = User::factory()->create(['wallet_balance' => 10.00]);
+
+        $this->actingAs($user)->post('/transactions', [
+            'description' => 'Too Expensive',
+            'amount' => 15.50,
+            'type' => 'expense',
+        ])->assertSessionHasErrors('amount');
+
+        $this->assertDatabaseMissing('transaction', [
+            'description' => 'Too Expensive',
+            'user_id' => $user->id,
+        ]);
+
+        $this->assertDatabaseMissing('savings_entries', [
+            'description' => 'Too Expensive',
+            'user_id' => $user->id,
+        ]);
     }
 
     /**
      * Test Case 4: test_transaction_can_be_deleted
      * Assert that a record is removed after a delete request.
      */
-    public function test_transaction_can_be_deleted(): void
+    public function test_transaction_delete_request_is_rejected(): void
     {
         /** @var User $user */
-        $user = User::factory()->create();
+        $user = User::factory()->create(['wallet_balance' => 100.00, 'total_saved' => 0.00]);
 
         $transaction = Transaction::create([
             'user_id' => $user->id,
+            'savings_entry_id' => null,
             'description' => 'Test Transaction',
             'amount' => 100.00,
             'type' => 'income',
@@ -91,8 +154,13 @@ class FinancialSystemTest extends TestCase
 
         $response = $this->actingAs($user)->delete("/transactions/{$transaction->id}");
 
-        $this->assertDatabaseMissing('transaction', [
+        $response->assertSessionHasErrors('transaction');
+
+        $this->assertDatabaseHas('transaction', [
             'id' => $transaction->id,
         ]);
+
+        $this->assertEquals(100.00, (float) $user->fresh()->wallet_balance);
+        $this->assertEquals(0.00, (float) $user->fresh()->total_saved);
     }
 }

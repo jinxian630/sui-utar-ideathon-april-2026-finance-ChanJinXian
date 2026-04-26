@@ -18,33 +18,49 @@
             * { font-family: 'Inter', sans-serif; }
             [x-cloak] { display: none !important; }
             body { background: #0D0D14; }
-            ::-webkit-scrollbar { width: 5px; height: 5px; }
-            ::-webkit-scrollbar-track { background: transparent; }
-            ::-webkit-scrollbar-thumb { background: #2a2a3d; border-radius: 10px; }
-            ::-webkit-scrollbar-thumb:hover { background: #3a3a5d; }
+            ::-webkit-scrollbar { width: 8px; height: 8px; }
+            ::-webkit-scrollbar-track { background: #0D0D14; }
+            ::-webkit-scrollbar-thumb { background: #4a4a6a; border-radius: 10px; border: 2px solid #0D0D14; }
+            ::-webkit-scrollbar-thumb:hover { background: #7C5CFF; }
         </style>
     </head>
-    <body class="antialiased text-gray-300 overflow-hidden">
+    <body class="antialiased text-gray-300 bg-[#0D0D14] overflow-x-hidden">
 
-        <div class="flex h-screen bg-[#0D0D14]">
+        <div class="flex min-h-screen w-full bg-[#0D0D14]">
 
             {{-- ======== LEFT SIDEBAR ======== --}}
-            @include('layouts.sidebar')
+            <div class="sticky top-0 h-screen shrink-0">
+                @include('layouts.sidebar')
+            </div>
 
             {{-- ======== MAIN AREA ======== --}}
-            <div class="flex flex-col flex-1 min-w-0 h-full overflow-hidden">
+            <div class="flex flex-col flex-1 min-w-0">
 
                 {{-- TOP NAVIGATION BAR --}}
-                @include('layouts.topnav')
+                <div class="sticky top-0 z-50 shrink-0">
+                    @include('layouts.topnav')
+                </div>
 
                 {{-- PAGE CONTENT --}}
-                <main class="flex-1 overflow-y-auto bg-[#0D0D14]">
+                <main class="flex-1 bg-[#0D0D14]">
                     {{ $slot }}
                 </main>
             </div>
         </div>
 
-        {{-- AI Chat Widget (all authenticated pages) --}}
+        @if(session('error'))
+            <div x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 4500)"
+                 x-cloak
+                 class="fixed top-20 right-6 z-[9999] max-w-sm rounded-xl border border-red-500/25 bg-red-500/10 px-4 py-3 text-sm text-red-200 shadow-2xl">
+                {{ session('error') }}
+            </div>
+        @endif
+
+        <x-badge-popup
+            :wallet-address="optional(auth()->user())->wallet_address ?? optional(auth()->user())->sui_address ?? ''"
+            :package-id="config('sui.package_id')"
+        />
+
         @auth
             <x-chat-widget />
         @endauth

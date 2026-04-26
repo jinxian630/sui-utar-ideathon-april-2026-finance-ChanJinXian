@@ -79,6 +79,25 @@ class ProfileTest extends TestCase
         $this->assertNull($user->fresh());
     }
 
+    public function test_passwordless_zklogin_user_can_delete_their_account_without_password(): void
+    {
+        $user = User::factory()->create([
+            'password' => null,
+            'wallet_address' => '0x' . str_repeat('a', 64),
+        ]);
+
+        $response = $this
+            ->actingAs($user)
+            ->delete('/profile');
+
+        $response
+            ->assertSessionHasNoErrors()
+            ->assertRedirect('/');
+
+        $this->assertGuest();
+        $this->assertNull($user->fresh());
+    }
+
     public function test_correct_password_must_be_provided_to_delete_account(): void
     {
         $user = User::factory()->create();

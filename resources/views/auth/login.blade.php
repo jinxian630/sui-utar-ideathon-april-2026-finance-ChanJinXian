@@ -130,7 +130,7 @@
     <div class="auth-divider"><span>or continue with</span></div>
 
     <!-- zkLogin / Web3 -->
-    <button type="button" id="zklogin-btn" class="web3-btn">
+    <button type="button" id="zklogin-btn" data-zk-mode="login" class="web3-btn">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
             <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.5"/>
             <path d="M12 4C12 4 8 9.5 8 12.5C8 14.9 9.8 17 12 17C14.2 17 16 14.9 16 12.5C16 9.5 12 4 12 4Z" fill="currentColor"/>

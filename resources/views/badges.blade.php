@@ -1,10 +1,10 @@
 <x-app-layout>
 
     @php
-        $earnedCount = 0;
-        foreach ($milestones as $lvl => $badge) {
-            if (($totalSaved ?? 0) >= $badge['threshold']) $earnedCount++;
-        }
+        // Use DB-minted badges for earned state
+        $earnedSlugs = $earnedSlugs ?? [];
+        $earnedBadges = $earnedBadges ?? collect();
+        $earnedCount = count($earnedSlugs);
         $totalBadges = count($milestones);
     @endphp
 
@@ -71,8 +71,8 @@
 
             {{-- Milestone markers --}}
             <div style="display:flex;justify-content:space-between;">
-                @foreach($milestones as $lvl => $m)
-                    @php $done = ($totalSaved ?? 0) >= $m['threshold']; @endphp
+                            @foreach($milestones as $lvl => $m)
+                    @php $done = in_array($m['slug'], $earnedSlugs); @endphp
                     <div style="text-align:center;flex:1;">
                         <div style="width:20px;height:20px;border-radius:50%;margin:0 auto 0.25rem;display:flex;align-items:center;justify-content:center;font-size:0.65rem;
                             {{ $done ? 'background:linear-gradient(135deg,#7C5CFF,#a78bfa);color:white;box-shadow:0 0 8px rgba(124,92,255,0.4);' : 'background:#1a1a2e;border:1px solid rgba(255,255,255,0.08);color:#4a4a6a;' }}">
@@ -95,8 +95,11 @@
         {{-- BADGE CARDS GRID --}}
         <div style="display:grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem;">
             @foreach($milestones as $lvl => $badge)
-                @php
-                    $earned   = ($totalSaved ?? 0) >= $badge['threshold'];
+                                @php
+                    // Use DB earned state (badge actually minted)
+                    $earned   = in_array($badge['slug'], $earnedSlugs);
+                    $earnedBadge = $earnedBadges->get($badge['slug']);
+                    $suivisionUrl = $earnedBadge?->suivision_url;
                     $badgeGap = max(0, $badge['threshold'] - ($totalSaved ?? 0));
 
                     // Progress within this badge tier
@@ -116,9 +119,11 @@
                     $grad = $gradients[$lvl];
                 @endphp
 
-                <div style="background:#12121e;border:1px solid {{ $earned ? 'rgba(124,92,255,0.2)' : 'rgba(255,255,255,0.06)' }};border-radius:1rem;padding:1.5rem;box-shadow:{{ $earned ? '0 4px 24px rgba(124,92,255,0.12)' : '0 4px 16px rgba(0,0,0,0.3)' }};position:relative;overflow:hidden;transition:all 0.2s;"
-                     onmouseover="this.style.borderColor='rgba(124,92,255,0.35)';this.style.transform='translateY(-2px)';"
-                     onmouseout="this.style.borderColor='{{ $earned ? 'rgba(124,92,255,0.2)' : 'rgba(255,255,255,0.06)' }}';this.style.transform='translateY(0)';">
+                <div
+                    style="background:#12121e;border:1px solid {{ $earned ? 'rgba(124,92,255,0.2)' : 'rgba(255,255,255,0.06)' }};border-radius:1rem;padding:1.5rem;box-shadow:{{ $earned ? '0 4px 24px rgba(124,92,255,0.12)' : '0 4px 16px rgba(0,0,0,0.3)' }};position:relative;overflow:hidden;transition:all 0.2s;"
+                    onmouseover="this.style.borderColor='rgba(124,92,255,0.35)';this.style.transform='translateY(-2px)';"
+                    onmouseout="this.style.borderColor='{{ $earned ? 'rgba(124,92,255,0.2)' : 'rgba(255,255,255,0.06)' }}';this.style.transform='translateY(0)';"
+                >
 
                     {{-- Background glow for earned --}}
                     @if($earned)
@@ -165,6 +170,40 @@
                             </p>
                         @endif
                     </div>
+
+                    @if($earned && $suivisionUrl)
+                        <div style="display:flex;align-items:center;gap:0.6rem;margin-top:1.1rem;padding-top:1rem;border-top:1px solid rgba(255,255,255,0.07);">
+                            <a href="{{ $suivisionUrl }}"
+                               target="_blank"
+                               rel="noopener noreferrer"
+                               title="View {{ $badge['name'] }} on SuiVision Testnet"
+                               aria-label="View {{ $badge['name'] }} on SuiVision Testnet"
+                               style="display:inline-flex;align-items:center;justify-content:center;width:2.4rem;height:2.4rem;border-radius:0.75rem;background:rgba(14,165,233,0.14);border:1px solid rgba(56,189,248,0.25);color:#7dd3fc;transition:all 0.2s;">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                    <path d="M7 17 17 7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                                    <path d="M9 7h8v8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                    <path d="M14 5H6a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                                </svg>
+                            </a>
+
+                            <a href="https://www.facebook.com/sharer/sharer.php?u={{ urlencode($suivisionUrl) }}"
+                               target="_blank"
+                               rel="noopener noreferrer"
+                               title="Share {{ $badge['name'] }} on Facebook"
+                               aria-label="Share {{ $badge['name'] }} on Facebook"
+                               style="display:inline-flex;align-items:center;justify-content:center;width:2.4rem;height:2.4rem;border-radius:0.75rem;background:rgba(37,99,235,0.16);border:1px solid rgba(96,165,250,0.28);color:#93c5fd;transition:all 0.2s;">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                                    <path d="M14 8.4V6.9c0-.7.5-.9.9-.9H17V3h-2.9C11.3 3 10 4.7 10 6.7v1.7H8v3.2h2V21h4v-9.4h2.7l.3-3.2H14Z"/>
+                                </svg>
+                            </a>
+
+                            <span style="color:#5a5a7a;font-size:0.7rem;">Open on SuiVision or share this badge</span>
+                        </div>
+                    @elseif($earned)
+                        <div style="margin-top:1.1rem;padding-top:1rem;border-top:1px solid rgba(255,255,255,0.07);color:#5a5a7a;font-size:0.7rem;">
+                            SuiVision link pending. Run the badge publish command to mint this badge on Sui Testnet.
+                        </div>
+                    @endif
                 </div>
             @endforeach
         </div>

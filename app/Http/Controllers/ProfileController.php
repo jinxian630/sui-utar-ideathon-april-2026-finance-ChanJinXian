@@ -42,11 +42,15 @@ class ProfileController extends Controller
      */
     public function destroy(Request $request): RedirectResponse
     {
-        $request->validateWithBag('userDeletion', [
-            'password' => ['required', 'current_password'],
-        ]);
-
         $user = $request->user();
+        $isPasswordlessWalletAccount = empty($user->password)
+            && !empty($user->wallet_address ?? $user->sui_address);
+
+        if (!$isPasswordlessWalletAccount) {
+            $request->validateWithBag('userDeletion', [
+                'password' => ['required', 'current_password'],
+            ]);
+        }
 
         Auth::logout();
 

@@ -1,4 +1,6 @@
 import './bootstrap';
+import './sui-sync';
+import './badge-events';
 
 import Alpine from 'alpinejs';
 
