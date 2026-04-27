@@ -19,3 +19,18 @@ services:
         value: database
       - key: RUN_MIGRATIONS
         value: true
+      - key: DB_CONNECTION
+        value: pgsql
+      - key: DATABASE_URL
+        fromDatabase:
+          name: nuance-finance-db
+          property: connectionString
+      - key: DB_URL
+        fromDatabase:
+          name: nuance-finance-db
+          property: connectionString
+
+databases:
+  - name: nuance-finance-db
+    plan: free
+    databaseName: nuance_finance
