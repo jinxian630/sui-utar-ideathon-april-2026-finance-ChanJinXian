@@ -24,7 +24,7 @@
             this.scrollToBottom();
 
             try {
-                const response = await fetch('{{ route('api.chat.store') }}', {
+                const response = await fetch('{{ route('api.chat.store', [], false) }}', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
