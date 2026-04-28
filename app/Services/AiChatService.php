@@ -161,7 +161,7 @@ class AiChatService
     {
         return ChatLog::where('user_id', $user->id)
             ->latest('id')
-            ->take(10)
+            ->take(6)
             ->get(['role', 'message'])
             ->reverse()
             ->values()
@@ -214,15 +214,13 @@ class AiChatService
             return $this->fallbackReply($context);
         }
 
-        $model = config('services.gemini.model', 'gemini-3-flash-preview');
+        $model = config('services.gemini.model', 'gemini-2.0-flash');
         $baseUrl = rtrim(config('services.gemini.base_url', 'https://generativelanguage.googleapis.com/v1beta'), '/');
         $url = "{$baseUrl}/models/{$model}:generateContent";
 
         $contents = array_merge($history, [[
             'role' => 'user',
-            'parts' => [
-                ['text' => $message],
-            ],
+            'parts' => [['text' => $message]],
         ]]);
 
         try {
@@ -233,14 +231,12 @@ class AiChatService
                 ])
                 ->post($url, [
                     'systemInstruction' => [
-                        'parts' => [[
-                            'text' => $this->systemPrompt($context),
-                        ]],
+                        'parts' => [['text' => $this->systemPrompt($context)]],
                     ],
                     'contents' => $contents,
                     'generationConfig' => [
                         'temperature' => 0.45,
-                        'maxOutputTokens' => 700,
+                        'maxOutputTokens' => 2048,
                     ],
                 ]);
 
@@ -253,12 +249,20 @@ class AiChatService
                 return $this->fallbackReply($context);
             }
 
-            $reply = trim(collect(data_get($response->json(), 'candidates.0.content.parts', []))
+            $candidate = data_get($response->json(), 'candidates.0');
+            $finishReason = data_get($candidate, 'finishReason');
+            $reply = trim(collect(data_get($candidate, 'content.parts', []))
                 ->pluck('text')
                 ->filter()
                 ->implode("\n"));
 
+            if ($finishReason === 'MAX_TOKENS') {
+                Log::warning('Gemini reply hit token limit despite 2048 cap — falling back gracefully.');
+                return $this->fallbackReply($context);
+            }
+
             return $reply !== '' ? $reply : $this->fallbackReply($context);
+
         } catch (\Throwable $exception) {
             Log::warning('Gemini chat request errored', [
                 'error' => $exception->getMessage(),
@@ -270,23 +274,59 @@ class AiChatService
 
     private function systemPrompt(array $context): string
     {
-        return "You are the Finance Tracker AI, a concise financial planning assistant for a Laravel savings app.\n"
+        return "You are the Finance Tracker AI, a friendly and concise financial planning assistant for a Laravel savings app.\n"
             . "Use only the supplied user snapshot for account facts. Do not invent balances, badges, transactions, or on-chain verification.\n"
             . "Give practical savings guidance in Malaysian Ringgit (RM). Mention that advice is educational, not guaranteed financial advice, when appropriate.\n"
-            . "For badge forecasts, use the supplied forecast values and explain the assumptions. For on-chain questions, state the verification scope exactly.\n"
-            . "Prefer 2-4 short paragraphs or bullets.\n\n"
+            . "For badge forecasts, use the supplied forecast values and explain the assumptions briefly. For on-chain questions, state the verification scope exactly.\n"
+            . "IMPORTANT: Always write complete, finished responses. Every reply must end on a complete sentence — never stop mid-sentence or mid-thought.\n"
+            . "Keep every reply between 80 and 250 words. Never exceed 250 words. If you are approaching 250 words, wrap up your current thought cleanly and stop.\n"
+            . "Prefer 2-3 short paragraphs or a short bullet list. Be warm and encouraging.\n\n"
             . "Current user snapshot:\n"
             . json_encode($context, JSON_PRETTY_PRINT);
     }
 
     private function fallbackReply(array $context): string
     {
-        $next = $context['badges']['next'];
+        $name = $context['user']['name'] ?? 'there';
         $total = $context['balances']['goal_deposit_total_rm'];
+        $rebate = $context['balances']['rebate_earned_rm'];
+        $next = $context['badges']['next'];
+        $current = $context['badges']['current'];
+        $goals = $context['goals'] ?? [];
+        $forecast = $context['forecast'] ?? [];
 
-        return 'I cannot reach Gemini right now, but based on your saved goal deposits of RM ' .
-            number_format($total, 2) . ', your next badge is ' . $next['name'] .
-            '. You need RM ' . number_format($next['gap_rm'], 2) .
-            ' more. A practical next step is to make a small goal deposit after each income entry and use round-ups where possible.';
+        $lines = [];
+
+        $lines[] = "Hey {$name}! I'm having a little trouble reaching the AI service right now, but here's where you stand.";
+
+        if ($current) {
+            $lines[] = "You've earned the **{$current['name']}** badge — great progress!";
+        }
+
+        $lines[] = "Your total goal deposits are **RM " . number_format($total, 2) . "**"
+            . ($rebate > 0 ? ", and you've earned **RM " . number_format($rebate, 2) . "** in rebates so far" : "")
+            . ".";
+
+        $lines[] = "You're **RM " . number_format($next['gap_rm'], 2) . "** away from your next badge: **{$next['name']}**.";
+
+        if (!empty($forecast['average_weekly_saving_rm'])) {
+            $weekly = $forecast['average_weekly_saving_rm'];
+            $lines[] = "Based on your average of **RM " . number_format($weekly, 2) . "** saved per week, you're on a solid track.";
+
+            if (!empty($forecast['next_badge_estimated_date'])) {
+                $lines[] = "Keep it up and you could reach the next badge around **{$forecast['next_badge_estimated_date']}**.";
+            }
+        }
+
+        if (!empty($goals)) {
+            $goal = $goals[0];
+            $lines[] = "Your top active goal is **{$goal['name']}** with **RM " . number_format($goal['remaining_rm'], 2) . "** still to go"
+                . ($goal['deadline'] ? " by {$goal['deadline']}" : "")
+                . ".";
+        }
+
+        $lines[] = "Keep logging your deposits and use round-ups where you can — small amounts really do add up!";
+
+        return implode("\n\n", $lines);
     }
 }
