@@ -1,42 +1,24 @@
 <x-app-layout>
-
     <div style="padding:1.5rem;min-height:100%;background:#0D0D14;">
-
-        {{-- SUCCESS TOASTS --}}
-        @if(session('status') === 'profile-updated')
+        @if(session('status') === 'profile-updated' || session('status') === 'pin-updated')
             <div x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 3000)" x-cloak
                  x-transition:leave="transition ease-in duration-300" x-transition:leave-end="opacity-0 -translate-y-2"
                  style="position:fixed;top:1rem;right:1.5rem;z-index:999;display:flex;align-items:center;gap:0.75rem;background:rgba(74,222,128,0.1);border:1px solid rgba(74,222,128,0.25);color:#4ade80;padding:0.75rem 1rem;border-radius:0.75rem;font-size:0.875rem;font-weight:500;box-shadow:0 8px 24px rgba(0,0,0,0.4);">
-                ✅ Profile updated successfully!
+                {{ session('status') === 'pin-updated' ? 'Nuance PIN updated successfully.' : 'Profile updated successfully.' }}
             </div>
         @endif
 
-        @if(session('status') === 'password-updated')
-            <div x-data="{ show: true }" x-show="show" x-init="setTimeout(() => show = false, 3000)" x-cloak
-                 x-transition:leave="transition ease-in duration-300" x-transition:leave-end="opacity-0 -translate-y-2"
-                 style="position:fixed;top:1rem;right:1.5rem;z-index:999;display:flex;align-items:center;gap:0.75rem;background:rgba(74,222,128,0.1);border:1px solid rgba(74,222,128,0.25);color:#4ade80;padding:0.75rem 1rem;border-radius:0.75rem;font-size:0.875rem;font-weight:500;box-shadow:0 8px 24px rgba(0,0,0,0.4);">
-                🔒 Password updated successfully!
-            </div>
-        @endif
-
-        {{-- PAGE HEADER --}}
         <div style="margin-bottom:1.5rem;">
-            <h1 style="color:white;font-size:1.5rem;font-weight:700;letter-spacing:-0.3px;">Profile Settings</h1>
-            <p style="color:#5a5a7a;font-size:0.8rem;margin-top:0.25rem;">Manage your account information and security preferences</p>
+            <h1 style="color:white;font-size:1.5rem;font-weight:700;letter-spacing:0;">Profile Settings</h1>
+            <p style="color:#5a5a7a;font-size:0.8rem;margin-top:0.25rem;">Manage your profile, Google zkLogin identity, and security PIN.</p>
         </div>
 
-        {{-- TWO-COLUMN LAYOUT: left = profile + password, right = wallet + delete --}}
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.25rem;align-items:start;">
-
-            {{-- LEFT COLUMN --}}
+        <div class="profile-grid" style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:1.25rem;align-items:start;">
             <div style="display:flex;flex-direction:column;gap:1.25rem;">
-
-                {{-- UPDATE PROFILE INFORMATION --}}
-                <div style="background:#12121e;border:1px solid rgba(255,255,255,0.07);border-radius:1rem;padding:1.5rem;box-shadow:0 4px 24px rgba(0,0,0,0.4);position:relative;overflow:hidden;">
-                    <div style="position:absolute;top:-30px;right:-30px;width:120px;height:120px;background:rgba(124,92,255,0.06);border-radius:50%;pointer-events:none;"></div>
+                <section class="settings-card">
                     <div style="margin-bottom:1.25rem;">
-                        <h2 style="color:white;font-size:1rem;font-weight:600;">Profile Information</h2>
-                        <p style="color:#5a5a7a;font-size:0.75rem;margin-top:0.2rem;">Update your account's profile information and email address.</p>
+                        <h2 class="settings-title">Profile Information</h2>
+                        <p class="settings-copy">Update your display name. Your Google email stays locked to your zkLogin identity.</p>
                     </div>
 
                     <form method="post" action="{{ route('profile.update') }}" style="display:flex;flex-direction:column;gap:1rem;">
@@ -44,218 +26,360 @@
                         @method('patch')
 
                         <div>
-                            <label for="name" style="display:block;font-size:0.65rem;color:#6b6b8a;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:0.4rem;">Name</label>
-                            <input id="name" type="text" name="name" value="{{ old('name', $user->name) }}" required autocomplete="name"
-                                   style="width:100%;background:#0a0a14;border:1px solid rgba(255,255,255,0.08);border-radius:0.75rem;color:#e2e2f2;padding:0.625rem 0.875rem;font-size:0.875rem;outline:none;transition:border-color 0.2s;box-sizing:border-box;"
-                                   onfocus="this.style.borderColor='rgba(124,92,255,0.6)'" onblur="this.style.borderColor='rgba(255,255,255,0.08)'">
+                            <label for="name" class="settings-label">Name</label>
+                            <input id="name" class="settings-input" type="text" name="name" value="{{ old('name', $user->name) }}" required autocomplete="name">
                             @error('name')
-                                <p style="color:#f87171;font-size:0.7rem;margin-top:0.3rem;">{{ $message }}</p>
+                                <p class="settings-error">{{ $message }}</p>
                             @enderror
                         </div>
 
                         <div>
-                            <label for="email" style="display:block;font-size:0.65rem;color:#6b6b8a;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:0.4rem;">Email Address</label>
-                            <input id="email" type="email" name="email" value="{{ old('email', $user->email) }}" required autocomplete="username"
-                                   style="width:100%;background:#0a0a14;border:1px solid rgba(255,255,255,0.08);border-radius:0.75rem;color:#e2e2f2;padding:0.625rem 0.875rem;font-size:0.875rem;outline:none;transition:border-color 0.2s;box-sizing:border-box;"
-                                   onfocus="this.style.borderColor='rgba(124,92,255,0.6)'" onblur="this.style.borderColor='rgba(255,255,255,0.08)'">
-                            @error('email')
-                                <p style="color:#f87171;font-size:0.7rem;margin-top:0.3rem;">{{ $message }}</p>
-                            @enderror
+                            <span class="settings-label">Email Address</span>
+                            <div class="readonly-field">{{ $user->email }}</div>
+                            <p class="settings-hint">Email cannot be changed because it is linked to your Google zkLogin identity.</p>
                         </div>
 
-                        <div style="display:flex;align-items:center;gap:1rem;">
-                            <button type="submit"
-                                    style="background:linear-gradient(135deg,#7C5CFF,#4f46e5);color:white;font-weight:600;border-radius:0.75rem;padding:0.625rem 1.25rem;font-size:0.875rem;border:none;cursor:pointer;box-shadow:0 4px 16px rgba(124,92,255,0.35);transition:opacity 0.2s;"
-                                    onmouseover="this.style.opacity='0.9'" onmouseout="this.style.opacity='1'">
-                                Save Changes
-                            </button>
+                        <div>
+                            <button type="submit" class="primary-action">Save Changes</button>
                         </div>
                     </form>
-                </div>
+                </section>
 
-                {{-- UPDATE PASSWORD --}}
-                <div style="background:#12121e;border:1px solid rgba(255,255,255,0.07);border-radius:1rem;padding:1.5rem;box-shadow:0 4px 24px rgba(0,0,0,0.4);">
+                <section class="settings-card">
                     <div style="margin-bottom:1.25rem;">
-                        <h2 style="color:white;font-size:1rem;font-weight:600;">Update Password</h2>
-                        <p style="color:#5a5a7a;font-size:0.75rem;margin-top:0.2rem;">Ensure your account is using a long, random password to stay secure.</p>
+                        <h2 class="settings-title">Security PIN</h2>
+                        <p class="settings-copy">Change the 6-digit Nuance PIN used to protect your zkLogin wallet identity.</p>
                     </div>
 
-                    <form method="post" action="{{ route('password.update') }}" style="display:flex;flex-direction:column;gap:1rem;">
+                    <form method="post" action="{{ route('profile.pin.update') }}" style="display:flex;flex-direction:column;gap:1rem;">
                         @csrf
-                        @method('put')
+                        @method('patch')
 
                         <div>
-                            <label for="update_password_current_password" style="display:block;font-size:0.65rem;color:#6b6b8a;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:0.4rem;">Current Password</label>
-                            <input id="update_password_current_password" type="password" name="current_password" autocomplete="current-password"
-                                   style="width:100%;background:#0a0a14;border:1px solid rgba(255,255,255,0.08);border-radius:0.75rem;color:#e2e2f2;padding:0.625rem 0.875rem;font-size:0.875rem;outline:none;transition:border-color 0.2s;box-sizing:border-box;"
-                                   onfocus="this.style.borderColor='rgba(124,92,255,0.6)'" onblur="this.style.borderColor='rgba(255,255,255,0.08)'">
-                            @error('current_password', 'updatePassword')
-                                <p style="color:#f87171;font-size:0.7rem;margin-top:0.3rem;">{{ $message }}</p>
+                            <label for="current_pin" class="settings-label">Current PIN</label>
+                            <input id="current_pin" class="settings-input pin-input" type="password" name="current_pin" inputmode="numeric" maxlength="6" autocomplete="current-password" placeholder="6-digit PIN">
+                            @error('current_pin', 'updatePin')
+                                <p class="settings-error">{{ $message }}</p>
                             @enderror
                         </div>
 
                         <div>
-                            <label for="update_password_password" style="display:block;font-size:0.65rem;color:#6b6b8a;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:0.4rem;">New Password</label>
-                            <input id="update_password_password" type="password" name="password" autocomplete="new-password"
-                                   style="width:100%;background:#0a0a14;border:1px solid rgba(255,255,255,0.08);border-radius:0.75rem;color:#e2e2f2;padding:0.625rem 0.875rem;font-size:0.875rem;outline:none;transition:border-color 0.2s;box-sizing:border-box;"
-                                   onfocus="this.style.borderColor='rgba(124,92,255,0.6)'" onblur="this.style.borderColor='rgba(255,255,255,0.08)'">
-                            @error('password', 'updatePassword')
-                                <p style="color:#f87171;font-size:0.7rem;margin-top:0.3rem;">{{ $message }}</p>
+                            <label for="new_pin" class="settings-label">New PIN</label>
+                            <input id="new_pin" class="settings-input pin-input" type="password" name="new_pin" inputmode="numeric" maxlength="6" autocomplete="new-password" placeholder="New 6-digit PIN">
+                            @error('new_pin', 'updatePin')
+                                <p class="settings-error">{{ $message }}</p>
                             @enderror
                         </div>
 
                         <div>
-                            <label for="update_password_password_confirmation" style="display:block;font-size:0.65rem;color:#6b6b8a;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:0.4rem;">Confirm New Password</label>
-                            <input id="update_password_password_confirmation" type="password" name="password_confirmation" autocomplete="new-password"
-                                   style="width:100%;background:#0a0a14;border:1px solid rgba(255,255,255,0.08);border-radius:0.75rem;color:#e2e2f2;padding:0.625rem 0.875rem;font-size:0.875rem;outline:none;transition:border-color 0.2s;box-sizing:border-box;"
-                                   onfocus="this.style.borderColor='rgba(124,92,255,0.6)'" onblur="this.style.borderColor='rgba(255,255,255,0.08)'">
-                            @error('password_confirmation', 'updatePassword')
-                                <p style="color:#f87171;font-size:0.7rem;margin-top:0.3rem;">{{ $message }}</p>
+                            <label for="new_pin_confirmation" class="settings-label">Confirm New PIN</label>
+                            <input id="new_pin_confirmation" class="settings-input pin-input" type="password" name="new_pin_confirmation" inputmode="numeric" maxlength="6" autocomplete="new-password" placeholder="Repeat new PIN">
+                            @error('new_pin_confirmation', 'updatePin')
+                                <p class="settings-error">{{ $message }}</p>
                             @enderror
                         </div>
 
                         <div>
-                            <button type="submit"
-                                    style="background:linear-gradient(135deg,#7C5CFF,#4f46e5);color:white;font-weight:600;border-radius:0.75rem;padding:0.625rem 1.25rem;font-size:0.875rem;border:none;cursor:pointer;box-shadow:0 4px 16px rgba(124,92,255,0.35);transition:opacity 0.2s;"
-                                    onmouseover="this.style.opacity='0.9'" onmouseout="this.style.opacity='1'">
-                                Update Password
-                            </button>
+                            <button type="submit" class="primary-action">Update PIN</button>
                         </div>
                     </form>
-                </div>
-
+                </section>
             </div>
 
-            {{-- RIGHT COLUMN --}}
             <div style="display:flex;flex-direction:column;gap:1.25rem;">
-
-                {{-- WALLET ADDRESS CARD --}}
-                <div style="background:#12121e;border:1px solid rgba(255,255,255,0.07);border-radius:1rem;padding:1.5rem;box-shadow:0 4px 24px rgba(0,0,0,0.4);">
+                <section class="settings-card">
                     <div style="margin-bottom:1.25rem;">
-                        <h2 style="color:white;font-size:1rem;font-weight:600;">Sui Wallet Address</h2>
-                        <p style="color:#5a5a7a;font-size:0.75rem;margin-top:0.2rem;">Share this address to receive Sui tokens and NFTs.</p>
+                        <h2 class="settings-title">Sui Wallet Address</h2>
+                        <p class="settings-copy">Share this address to receive Sui tokens and NFTs.</p>
                     </div>
 
                     @if($user->wallet_address)
                         <div style="background:#0a0a14;border:1px solid rgba(45,212,191,0.2);border-radius:0.875rem;padding:1rem;margin-bottom:1rem;">
                             <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.625rem;">
                                 <span style="width:8px;height:8px;border-radius:50%;background:#2dd4bf;display:inline-block;animation:pulse 2s infinite;"></span>
-                                <span style="color:#2dd4bf;font-size:0.65rem;font-weight:600;text-transform:uppercase;letter-spacing:0.1em;">Connected · Sui Testnet</span>
+                                <span style="color:#2dd4bf;font-size:0.65rem;font-weight:600;text-transform:uppercase;letter-spacing:0.1em;">Connected - Sui Testnet</span>
                             </div>
                             <p id="wallet-addr" style="color:#e2e2f2;font-family:monospace;font-size:0.8rem;word-break:break-all;line-height:1.6;">{{ $user->wallet_address }}</p>
                         </div>
                         <div x-data="{ copied: false }">
-                            <button @click="navigator.clipboard.writeText('{{ $user->wallet_address }}'); copied = true; setTimeout(() => copied = false, 2500)"
-                                    style="width:100%;background:rgba(45,212,191,0.1);border:1px solid rgba(45,212,191,0.25);color:#2dd4bf;font-weight:600;border-radius:0.75rem;padding:0.625rem;font-size:0.875rem;cursor:pointer;transition:all 0.2s;"
-                                    onmouseover="this.style.background='rgba(45,212,191,0.18)'" onmouseout="this.style.background='rgba(45,212,191,0.1)'">
-                                <span x-show="!copied">📋 Copy Wallet Address</span>
-                                <span x-show="copied" x-cloak style="color:#4ade80;">✅ Copied to clipboard!</span>
+                            <button @click="navigator.clipboard.writeText('{{ $user->wallet_address }}'); copied = true; setTimeout(() => copied = false, 2500)" class="secondary-action">
+                                <span x-show="!copied">Copy Wallet Address</span>
+                                <span x-show="copied" x-cloak style="color:#4ade80;">Copied to clipboard.</span>
                             </button>
                         </div>
                     @else
                         <div style="background:#0a0a14;border:1px dashed rgba(255,255,255,0.08);border-radius:0.875rem;padding:2rem;text-align:center;">
-                            <p style="font-size:2rem;margin-bottom:0.5rem;">⛓️</p>
                             <p style="color:#5a5a7a;font-size:0.8rem;">No wallet connected</p>
                             <p style="color:#3a3a5a;font-size:0.7rem;margin-top:0.25rem;">Log in with Sui zkLogin to link your wallet</p>
                         </div>
                     @endif
-                </div>
+                </section>
 
-                {{-- ACCOUNT ROLE & INFO --}}
-                <div style="background:#12121e;border:1px solid rgba(255,255,255,0.07);border-radius:1rem;padding:1.5rem;box-shadow:0 4px 24px rgba(0,0,0,0.4);">
-                    <h2 style="color:white;font-size:1rem;font-weight:600;margin-bottom:1rem;">Account Details</h2>
+                <section class="settings-card">
+                    <h2 class="settings-title" style="margin-bottom:1rem;">Account Details</h2>
                     <div style="display:flex;flex-direction:column;gap:0.75rem;">
-                        <div style="display:flex;justify-content:space-between;align-items:center;padding:0.75rem;background:#0a0a14;border-radius:0.75rem;border:1px solid rgba(255,255,255,0.05);">
-                            <span style="color:#6b6b8a;font-size:0.8rem;">Account Role</span>
-                            <span style="color:white;font-size:0.8rem;font-weight:600;background:rgba(124,92,255,0.15);border:1px solid rgba(124,92,255,0.25);padding:0.2rem 0.75rem;border-radius:100px;text-transform:capitalize;">{{ $user->role ?? 'user' }}</span>
+                        <div class="detail-row">
+                            <span>Account Role</span>
+                            <strong>{{ $user->role ?? 'user' }}</strong>
                         </div>
-                        <div style="display:flex;justify-content:space-between;align-items:center;padding:0.75rem;background:#0a0a14;border-radius:0.75rem;border:1px solid rgba(255,255,255,0.05);">
-                            <span style="color:#6b6b8a;font-size:0.8rem;">KYC Status</span>
-                            @if(($user->kyc_status ?? '') === 'verified')
-                                <span style="color:#4ade80;font-size:0.8rem;font-weight:600;background:rgba(74,222,128,0.1);border:1px solid rgba(74,222,128,0.2);padding:0.2rem 0.75rem;border-radius:100px;">✅ Verified</span>
-                            @else
-                                <span style="color:#f59e0b;font-size:0.8rem;font-weight:600;background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.2);padding:0.2rem 0.75rem;border-radius:100px;">⏳ Pending</span>
-                            @endif
+                        <div class="detail-row">
+                            <span>KYC Status</span>
+                            <strong>{{ ($user->kyc_status ?? '') === 'verified' ? 'Verified' : 'Pending' }}</strong>
                         </div>
-                        <div style="display:flex;justify-content:space-between;align-items:center;padding:0.75rem;background:#0a0a14;border-radius:0.75rem;border:1px solid rgba(255,255,255,0.05);">
-                            <span style="color:#6b6b8a;font-size:0.8rem;">Member Since</span>
-                            <span style="color:#e2e2f2;font-size:0.8rem;font-weight:500;">{{ $user->created_at->format('d M Y') }}</span>
+                        <div class="detail-row">
+                            <span>Member Since</span>
+                            <strong>{{ $user->created_at->format('d M Y') }}</strong>
                         </div>
                     </div>
-                </div>
+                </section>
 
-                {{-- DELETE ACCOUNT --}}
-                @php
-                    $isPasswordlessWalletAccount = empty($user->password) && !empty($user->wallet_address ?? $user->sui_address);
-                @endphp
-                <div style="background:#12121e;border:1px solid rgba(248,113,113,0.15);border-radius:1rem;padding:1.5rem;box-shadow:0 4px 24px rgba(0,0,0,0.4);" x-data="{ confirm: false }">
+                <section class="settings-card danger-card"
+                         x-data="deleteAccountFlow('{{ route('profile.pin.verify') }}')">
                     <div style="margin-bottom:1rem;">
                         <h2 style="color:#f87171;font-size:1rem;font-weight:600;">Danger Zone</h2>
-                        <p style="color:#5a5a7a;font-size:0.75rem;margin-top:0.2rem;line-height:1.6;">Once your account is deleted, all data will be permanently removed. This action cannot be undone.</p>
+                        <p class="settings-copy">Verify your Nuance PIN first. A final confirmation appears only after the PIN is correct.</p>
                     </div>
 
-                    <button @click="confirm = !confirm"
-                            style="background:rgba(248,113,113,0.1);border:1px solid rgba(248,113,113,0.25);color:#f87171;font-weight:600;border-radius:0.75rem;padding:0.625rem 1.25rem;font-size:0.875rem;cursor:pointer;transition:all 0.2s;"
-                            onmouseover="this.style.background='rgba(248,113,113,0.2)'" onmouseout="this.style.background='rgba(248,113,113,0.1)'">
-                        🗑️ Delete Account
-                    </button>
+                    <div x-show="!verified" x-cloak>
+                        <label for="delete_pin" class="settings-label">Nuance PIN</label>
+                        <input id="delete_pin" x-model="pin" class="settings-input pin-input danger-input" type="password" inputmode="numeric" maxlength="6" placeholder="Enter your PIN">
+                        <p x-show="error" x-text="error" class="settings-error" x-cloak></p>
+                        @error('zk_pin', 'userDeletion')
+                            <p class="settings-error">{{ $message }}</p>
+                        @enderror
+                        <button type="button" @click="verify" class="danger-action" style="margin-top:0.75rem;" :disabled="loading">
+                            <span x-text="loading ? 'Checking PIN...' : 'Verify PIN'"></span>
+                        </button>
+                    </div>
 
-                    @if($isPasswordlessWalletAccount)
-                        <style>.delete-confirm-panel > p:first-of-type { display: none; }</style>
-                    @endif
-                    <div class="delete-confirm-panel" x-show="confirm" x-cloak x-transition
-                         style="margin-top:1rem;background:#0a0a14;border:1px solid rgba(248,113,113,0.2);border-radius:0.875rem;padding:1rem;">
-                        <p style="color:#f87171;font-size:0.8rem;font-weight:600;margin-bottom:0.75rem;">⚠️ Type your password to confirm deletion:</p>
-                        @if($isPasswordlessWalletAccount)
-                            <p style="color:#fca5a5;font-size:0.75rem;margin:-0.35rem 0 0.75rem;">For Web3 accounts, enter your Nuance PIN below.</p>
-                        @else
-                            <p style="display:none;"></p>
-                        @endif
+                    <div x-show="verified" x-cloak x-transition class="confirm-panel">
+                        <h3 style="color:white;font-size:0.95rem;font-weight:700;margin:0 0 0.35rem;">Confirm account deletion</h3>
+                        <p style="color:#fca5a5;font-size:0.75rem;line-height:1.6;margin:0 0 1rem;">Your PIN is correct. Deleting this account permanently removes your profile, wallet link, savings entries, goals, badges, and chat history.</p>
                         <form method="post" action="{{ route('profile.destroy') }}">
                             @csrf
                             @method('delete')
-                            @if($isPasswordlessWalletAccount)
-                                <input type="password" name="zk_pin" inputmode="numeric" maxlength="6" placeholder="Enter your Nuance PIN"
-                                       style="width:100%;background:#12121e;border:1px solid rgba(248,113,113,0.3);border-radius:0.625rem;color:#e2e2f2;padding:0.5rem 0.75rem;font-size:0.875rem;outline:none;margin-bottom:0.75rem;box-sizing:border-box;"
-                                       oninput="this.value=this.value.replace(/\D/g,'').slice(0,6)"
-                                       onfocus="this.style.borderColor='rgba(248,113,113,0.7)'" onblur="this.style.borderColor='rgba(248,113,113,0.3)'">
-                                @error('zk_pin', 'userDeletion')
-                                    <p style="color:#f87171;font-size:0.7rem;margin-bottom:0.5rem;">{{ $message }}</p>
-                                @enderror
-                            @else
-                                <input type="password" name="password" placeholder="Enter your password"
-                                       style="width:100%;background:#12121e;border:1px solid rgba(248,113,113,0.3);border-radius:0.625rem;color:#e2e2f2;padding:0.5rem 0.75rem;font-size:0.875rem;outline:none;margin-bottom:0.75rem;box-sizing:border-box;"
-                                       onfocus="this.style.borderColor='rgba(248,113,113,0.7)'" onblur="this.style.borderColor='rgba(248,113,113,0.3)'">
-                                @error('password', 'userDeletion')
-                                    <p style="color:#f87171;font-size:0.7rem;margin-bottom:0.5rem;">{{ $message }}</p>
-                                @enderror
-                            @endif
+                            <input type="hidden" name="zk_pin" :value="pin">
                             <div style="display:flex;gap:0.5rem;">
-                                <button type="submit"
-                                        style="flex:1;background:#ef4444;color:white;font-weight:600;border-radius:0.625rem;padding:0.5rem;font-size:0.8rem;border:none;cursor:pointer;transition:background 0.2s;"
-                                        onmouseover="this.style.background='#dc2626'" onmouseout="this.style.background='#ef4444'">
-                                    Confirm Delete
-                                </button>
-                                <button type="button" @click="confirm = false"
-                                        style="flex:1;background:rgba(255,255,255,0.05);color:#9a9ab0;border:1px solid rgba(255,255,255,0.08);border-radius:0.625rem;padding:0.5rem;font-size:0.8rem;cursor:pointer;transition:background 0.2s;"
-                                        onmouseover="this.style.background='rgba(255,255,255,0.1)'" onmouseout="this.style.background='rgba(255,255,255,0.05)'">
-                                    Cancel
-                                </button>
+                                <button type="submit" class="danger-action" style="flex:1;">Delete Account</button>
+                                <button type="button" @click="reset" class="cancel-action" style="flex:1;">Cancel</button>
                             </div>
                         </form>
                     </div>
-                </div>
-
+                </section>
             </div>
         </div>
 
-        {{-- Bottom spacer for scroll breathing room --}}
         <div style="height:2rem;"></div>
     </div>
+
+    <script>
+        function deleteAccountFlow(verifyUrl) {
+            return {
+                pin: '',
+                error: '',
+                loading: false,
+                verified: false,
+                async verify() {
+                    this.error = '';
+
+                    if (!/^\d{6}$/.test(this.pin)) {
+                        this.error = 'Enter exactly 6 digits.';
+                        return;
+                    }
+
+                    this.loading = true;
+
+                    try {
+                        const response = await fetch(verifyUrl, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Accept': 'application/json',
+                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                            },
+                            body: JSON.stringify({ zk_pin: this.pin }),
+                        });
+
+                        const data = await response.json().catch(() => ({}));
+
+                        if (!response.ok || !data.verified) {
+                            this.error = data.message || data.errors?.zk_pin?.[0] || 'The Nuance PIN is incorrect.';
+                            return;
+                        }
+
+                        this.verified = true;
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+                reset() {
+                    this.pin = '';
+                    this.error = '';
+                    this.verified = false;
+                    this.loading = false;
+                },
+            };
+        }
+    </script>
 
     <style>
         @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
         [x-cloak] { display: none !important; }
-    </style>
 
+        .settings-card {
+            background: #12121e;
+            border: 1px solid rgba(255,255,255,0.07);
+            border-radius: 1rem;
+            padding: 1.5rem;
+            box-shadow: 0 4px 24px rgba(0,0,0,0.4);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .danger-card {
+            border-color: rgba(248,113,113,0.15);
+        }
+
+        .settings-title {
+            color: white;
+            font-size: 1rem;
+            font-weight: 600;
+            margin: 0;
+        }
+
+        .settings-copy,
+        .settings-hint {
+            color: #5a5a7a;
+            font-size: 0.75rem;
+            line-height: 1.6;
+            margin: 0.2rem 0 0;
+        }
+
+        .settings-hint {
+            color: #8a8aa3;
+            margin-top: 0.45rem;
+        }
+
+        .settings-label {
+            display: block;
+            font-size: 0.65rem;
+            color: #6b6b8a;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-bottom: 0.4rem;
+        }
+
+        .settings-input,
+        .readonly-field {
+            width: 100%;
+            background: #0a0a14;
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 0.75rem;
+            color: #e2e2f2;
+            padding: 0.625rem 0.875rem;
+            font-size: 0.875rem;
+            outline: none;
+            box-sizing: border-box;
+        }
+
+        .settings-input:focus {
+            border-color: rgba(124,92,255,0.6);
+            box-shadow: 0 0 0 3px rgba(124,92,255,0.12);
+        }
+
+        .pin-input {
+            letter-spacing: 0.16em;
+        }
+
+        .danger-input:focus {
+            border-color: rgba(248,113,113,0.7);
+            box-shadow: 0 0 0 3px rgba(248,113,113,0.12);
+        }
+
+        .readonly-field {
+            color: #9a9ab0;
+            border-style: dashed;
+        }
+
+        .settings-error {
+            color: #f87171;
+            font-size: 0.7rem;
+            margin: 0.4rem 0 0;
+        }
+
+        .primary-action,
+        .secondary-action,
+        .danger-action,
+        .cancel-action {
+            border: none;
+            border-radius: 0.75rem;
+            padding: 0.625rem 1.25rem;
+            font-size: 0.875rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity 0.2s, background 0.2s;
+        }
+
+        .primary-action {
+            background: linear-gradient(135deg,#7C5CFF,#4f46e5);
+            color: white;
+            box-shadow: 0 4px 16px rgba(124,92,255,0.35);
+        }
+
+        .secondary-action {
+            width: 100%;
+            background: rgba(45,212,191,0.1);
+            border: 1px solid rgba(45,212,191,0.25);
+            color: #2dd4bf;
+        }
+
+        .danger-action {
+            background: #ef4444;
+            color: white;
+        }
+
+        .danger-action:disabled {
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+
+        .cancel-action {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.08);
+            color: #9a9ab0;
+        }
+
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 1rem;
+            padding: 0.75rem;
+            background: #0a0a14;
+            border-radius: 0.75rem;
+            border: 1px solid rgba(255,255,255,0.05);
+            color: #6b6b8a;
+            font-size: 0.8rem;
+        }
+
+        .detail-row strong {
+            color: white;
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: capitalize;
+        }
+
+        .confirm-panel {
+            background: #0a0a14;
+            border: 1px solid rgba(248,113,113,0.2);
+            border-radius: 0.875rem;
+            padding: 1rem;
+        }
+
+        @media (max-width: 900px) {
+            .profile-grid {
+                grid-template-columns: 1fr !important;
+            }
+        }
+    </style>
 </x-app-layout>

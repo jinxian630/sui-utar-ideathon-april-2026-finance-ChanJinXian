@@ -11,11 +11,7 @@ class FinancialSystemTest extends TestCase
 {
     use RefreshDatabase;
 
-    /**
-     * Test Case 1: test_user_can_register
-     * Assert that a new user record is created in the database.
-     */
-    public function test_user_can_register(): void
+    public function test_traditional_registration_is_unavailable(): void
     {
         $response = $this->post('/register', [
             'name' => 'Test User',
@@ -24,30 +20,24 @@ class FinancialSystemTest extends TestCase
             'password_confirmation' => 'password123',
         ]);
 
-        $this->assertDatabaseHas('users', [
+        $this->assertDatabaseMissing('users', [
             'email' => 'testuser@example.com',
         ]);
 
-        $response->assertRedirect('/dashboard');
+        $response->assertStatus(405);
     }
 
-    /**
-     * Test Case 2: test_user_can_login
-     * Assert that a user is redirected to the dashboard after providing correct credentials.
-     */
-    public function test_user_can_login(): void
+    public function test_traditional_login_is_unavailable(): void
     {
-        $user = User::factory()->create([
-            'password' => bcrypt('password123'),
-        ]);
+        $user = User::factory()->create();
 
         $response = $this->post('/login', [
             'email' => $user->email,
             'password' => 'password123',
         ]);
 
-        $this->assertAuthenticated();
-        $response->assertRedirect('/dashboard');
+        $this->assertGuest();
+        $response->assertStatus(405);
     }
 
     /**

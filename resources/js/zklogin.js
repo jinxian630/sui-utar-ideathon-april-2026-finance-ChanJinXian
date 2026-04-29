@@ -49,6 +49,15 @@ async function handleZkLoginCallback() {
     const decodedJwt = jwtDecode(jwt);
     const mode = sessionStorage.getItem('zklogin_mode') || 'login';
 
+    if (mode === 'login') {
+        const status = await checkZkLoginStatus(decodedJwt.email);
+
+        if (!status.hasPin) {
+            showRedirectNotice(status.message, status.redirect || '/register');
+            return;
+        }
+    }
+
     showPinDialog(mode, async (pin) => {
         const verifier = await sha256Hex(`${decodedJwt.sub}|${decodedJwt.email}|${pin}`);
         const salt = saltFromHex(verifier);
@@ -62,6 +71,7 @@ async function handleZkLoginCallback() {
                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
             },
             body: JSON.stringify({
+                mode,
                 wallet_address: zkLoginAddress,
                 email: decodedJwt.email,
                 name: decodedJwt.name || null,
@@ -71,6 +81,12 @@ async function handleZkLoginCallback() {
         });
 
         const data = await response.json().catch(() => ({}));
+        if (!response.ok && data.redirect) {
+            sessionStorage.removeItem('zklogin_mode');
+            window.location.href = data.redirect;
+            return;
+        }
+
         if (!response.ok || !data.redirect) {
             throw new Error(data.message || 'Unable to complete zkLogin.');
         }
@@ -78,6 +94,54 @@ async function handleZkLoginCallback() {
         sessionStorage.removeItem('zklogin_mode');
         window.location.href = data.redirect;
     });
+}
+
+async function checkZkLoginStatus(email) {
+    const response = await fetch('/auth/zklogin/status', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+        },
+        body: JSON.stringify({ email }),
+    });
+
+    const data = await response.json().catch(() => ({}));
+
+    if (response.ok && data.has_pin) {
+        return { hasPin: true };
+    }
+
+    return {
+        hasPin: false,
+        message: data.message || 'No Nuance PIN found for this Google account. Please register with Google zkLogin to create your PIN.',
+        redirect: data.redirect || '/register',
+    };
+}
+
+function showRedirectNotice(message, redirect) {
+    sessionStorage.removeItem('zklogin_mode');
+
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(5,8,18,0.86);display:flex;align-items:center;justify-content:center;padding:1.25rem;';
+    overlay.innerHTML = `
+        <div style="width:100%;max-width:420px;background:#12121e;border:1px solid rgba(34,211,238,0.28);border-radius:1.25rem;padding:1.5rem;box-shadow:0 24px 80px rgba(0,0,0,0.75);text-align:center;">
+            <p style="color:#67e8f9;font-size:0.65rem;font-weight:800;letter-spacing:0.16em;text-transform:uppercase;margin:0 0 0.5rem;">Register required</p>
+            <h2 style="color:white;font-size:1.2rem;font-weight:800;margin:0;">Create your Nuance PIN</h2>
+            <p style="color:#8a8aa3;font-size:0.82rem;line-height:1.6;margin:0.75rem 0 1rem;">${escapeHtml(message)}</p>
+            <button type="button" id="zk-register-redirect" style="width:100%;border:0;border-radius:0.85rem;background:linear-gradient(135deg,#00e5ff,#7c3aed 55%,#ff2bd6);color:white;font-weight:800;padding:0.85rem;cursor:pointer;">Go to Register</button>
+        </div>
+    `;
+
+    document.body.appendChild(overlay);
+    overlay.querySelector('#zk-register-redirect').addEventListener('click', () => {
+        window.location.href = redirect;
+    });
+
+    setTimeout(() => {
+        window.location.href = redirect;
+    }, 1800);
 }
 
 function showPinDialog(mode, onSubmit) {
@@ -133,6 +197,12 @@ function showPinDialog(mode, onSubmit) {
             submit.textContent = buttonText;
         }
     });
+}
+
+function escapeHtml(value) {
+    const div = document.createElement('div');
+    div.textContent = value;
+    return div.innerHTML;
 }
 
 async function sha256Hex(value) {

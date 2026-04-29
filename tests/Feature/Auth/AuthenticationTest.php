@@ -12,32 +12,18 @@ class AuthenticationTest extends TestCase
 
     public function test_login_screen_can_be_rendered(): void
     {
-        $response = $this->get('/login');
-
-        $response->assertStatus(200);
+        $this->get('/login')
+            ->assertStatus(200)
+            ->assertSee('Sign in with Google zkLogin')
+            ->assertDontSee('Email Address');
     }
 
-    public function test_users_can_authenticate_using_the_login_screen(): void
+    public function test_password_login_route_is_unavailable(): void
     {
-        $user = User::factory()->create();
-
-        $response = $this->post('/login', [
-            'email' => $user->email,
-            'password' => 'password',
-        ]);
-
-        $this->assertAuthenticated();
-        $response->assertRedirect(route('dashboard', absolute: false));
-    }
-
-    public function test_users_can_not_authenticate_with_invalid_password(): void
-    {
-        $user = User::factory()->create();
-
         $this->post('/login', [
-            'email' => $user->email,
-            'password' => 'wrong-password',
-        ]);
+            'email' => 'test@example.com',
+            'password' => 'password',
+        ])->assertStatus(405);
 
         $this->assertGuest();
     }

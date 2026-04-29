@@ -24,7 +24,10 @@ class ProfileTest extends TestCase
 
     public function test_profile_information_can_be_updated(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->create([
+            'email' => 'original@example.com',
+            'email_verified_at' => now(),
+        ]);
 
         $response = $this
             ->actingAs($user)
@@ -40,53 +43,133 @@ class ProfileTest extends TestCase
         $user->refresh();
 
         $this->assertSame('Test User', $user->name);
-        $this->assertSame('test@example.com', $user->email);
-        $this->assertNull($user->email_verified_at);
+        $this->assertSame('original@example.com', $user->email);
+        $this->assertNotNull($user->email_verified_at);
     }
 
-    public function test_email_verification_status_is_unchanged_when_the_email_address_is_unchanged(): void
+    public function test_profile_page_displays_email_as_locked_identity(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->create([
+            'email' => 'locked@example.com',
+        ]);
 
-        $response = $this
-            ->actingAs($user)
-            ->patch('/profile', [
-                'name' => 'Test User',
-                'email' => $user->email,
-            ]);
+        $this->actingAs($user)
+            ->get('/profile')
+            ->assertOk()
+            ->assertSee('locked@example.com')
+            ->assertSee('Email cannot be changed because it is linked to your Google zkLogin identity.')
+            ->assertDontSee('name="email"', false);
+    }
 
-        $response
+    public function test_zklogin_user_can_update_pin_with_current_pin(): void
+    {
+        $oldVerifier = hash('sha256', 'google-sub|zk@example.com|123456');
+        $newVerifier = hash('sha256', 'google-sub|zk@example.com|654321');
+
+        $user = User::factory()->create([
+            'email' => 'zk@example.com',
+            'zk_subject' => 'google-sub',
+            'zk_pin_hash' => Hash::make($oldVerifier),
+        ]);
+
+        $this->actingAs($user)
+            ->from('/profile')
+            ->patch('/profile/pin', [
+                'current_pin' => '123456',
+                'new_pin' => '654321',
+                'new_pin_confirmation' => '654321',
+            ])
             ->assertSessionHasNoErrors()
             ->assertRedirect('/profile');
 
-        $this->assertNotNull($user->refresh()->email_verified_at);
+        $this->assertTrue(Hash::check($newVerifier, $user->fresh()->zk_pin_hash));
+        $this->assertFalse(Hash::check($oldVerifier, $user->fresh()->zk_pin_hash));
     }
 
-    public function test_user_can_delete_their_account(): void
+    public function test_zklogin_user_cannot_update_pin_with_wrong_current_pin(): void
     {
-        $user = User::factory()->create();
+        $verifier = hash('sha256', 'google-sub|zk@example.com|123456');
 
-        $response = $this
-            ->actingAs($user)
-            ->delete('/profile', [
-                'password' => 'password',
-            ]);
+        $user = User::factory()->create([
+            'email' => 'zk@example.com',
+            'zk_subject' => 'google-sub',
+            'zk_pin_hash' => Hash::make($verifier),
+        ]);
 
-        $response
-            ->assertSessionHasNoErrors()
-            ->assertRedirect('/');
+        $this->actingAs($user)
+            ->from('/profile')
+            ->patch('/profile/pin', [
+                'current_pin' => '999999',
+                'new_pin' => '654321',
+                'new_pin_confirmation' => '654321',
+            ])
+            ->assertSessionHasErrorsIn('updatePin', 'current_pin')
+            ->assertRedirect('/profile');
 
-        $this->assertGuest();
-        $this->assertNull($user->fresh());
+        $this->assertTrue(Hash::check($verifier, $user->fresh()->zk_pin_hash));
     }
 
-    public function test_passwordless_zklogin_user_can_delete_their_account_with_correct_pin(): void
+    public function test_zklogin_user_cannot_update_pin_when_confirmation_mismatches(): void
+    {
+        $verifier = hash('sha256', 'google-sub|zk@example.com|123456');
+
+        $user = User::factory()->create([
+            'email' => 'zk@example.com',
+            'zk_subject' => 'google-sub',
+            'zk_pin_hash' => Hash::make($verifier),
+        ]);
+
+        $this->actingAs($user)
+            ->from('/profile')
+            ->patch('/profile/pin', [
+                'current_pin' => '123456',
+                'new_pin' => '654321',
+                'new_pin_confirmation' => '111111',
+            ])
+            ->assertSessionHasErrorsIn('updatePin', 'new_pin')
+            ->assertRedirect('/profile');
+    }
+
+    public function test_verify_pin_returns_success_for_correct_pin(): void
+    {
+        $user = User::factory()->create([
+            'email' => 'zk@example.com',
+            'zk_subject' => 'google-sub',
+            'zk_pin_hash' => Hash::make(hash('sha256', 'google-sub|zk@example.com|123456')),
+        ]);
+
+        $this->actingAs($user)
+            ->postJson('/profile/verify-pin', [
+                'zk_pin' => '123456',
+            ])
+            ->assertOk()
+            ->assertJson([
+                'verified' => true,
+            ]);
+    }
+
+    public function test_verify_pin_rejects_wrong_pin(): void
+    {
+        $user = User::factory()->create([
+            'email' => 'zk@example.com',
+            'zk_subject' => 'google-sub',
+            'zk_pin_hash' => Hash::make(hash('sha256', 'google-sub|zk@example.com|123456')),
+        ]);
+
+        $this->actingAs($user)
+            ->postJson('/profile/verify-pin', [
+                'zk_pin' => '999999',
+            ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('zk_pin');
+    }
+
+    public function test_zklogin_user_can_delete_their_account_with_correct_pin(): void
     {
         $pinVerifier = hash('sha256', 'google-sub|zk@example.com|123456');
 
         $user = User::factory()->create([
             'email' => 'zk@example.com',
-            'password' => null,
             'wallet_address' => '0x' . str_repeat('a', 64),
             'zk_subject' => 'google-sub',
             'zk_pin_hash' => Hash::make($pinVerifier),
@@ -113,7 +196,6 @@ class ProfileTest extends TestCase
 
         $user = User::factory()->create([
             'email' => 'zk@example.com',
-            'password' => null,
             'wallet_address' => '0x' . str_repeat('a', 64),
             'zk_subject' => 'google-sub',
             'zk_pin_hash' => Hash::make($oldVerifier),
@@ -147,13 +229,12 @@ class ProfileTest extends TestCase
         $this->assertAuthenticatedAs($newUser);
     }
 
-    public function test_passwordless_zklogin_user_cannot_delete_account_with_wrong_pin(): void
+    public function test_zklogin_user_cannot_delete_account_with_wrong_pin(): void
     {
         $pinVerifier = hash('sha256', 'google-sub|zk@example.com|123456');
 
         $user = User::factory()->create([
             'email' => 'zk@example.com',
-            'password' => null,
             'wallet_address' => '0x' . str_repeat('a', 64),
             'zk_subject' => 'google-sub',
             'zk_pin_hash' => Hash::make($pinVerifier),
@@ -174,10 +255,10 @@ class ProfileTest extends TestCase
         $this->assertNotNull($user->fresh());
     }
 
-    public function test_passwordless_zklogin_user_must_enter_pin_to_delete_account(): void
+    public function test_zklogin_user_must_enter_pin_to_delete_account(): void
     {
         $user = User::factory()->create([
-            'password' => null,
+            'email' => 'user@example.com',
             'wallet_address' => '0x' . str_repeat('a', 64),
             'zk_subject' => 'google-sub',
             'zk_pin_hash' => Hash::make(hash('sha256', 'google-sub|' . 'user@example.com' . '|123456')),
@@ -196,19 +277,24 @@ class ProfileTest extends TestCase
         $this->assertNotNull($user->fresh());
     }
 
-    public function test_correct_password_must_be_provided_to_delete_account(): void
+    public function test_password_cannot_be_used_to_delete_account(): void
     {
-        $user = User::factory()->create();
+        $user = User::factory()->create([
+            'email' => 'zk@example.com',
+            'wallet_address' => '0x' . str_repeat('a', 64),
+            'zk_subject' => 'google-sub',
+            'zk_pin_hash' => Hash::make(hash('sha256', 'google-sub|zk@example.com|123456')),
+        ]);
 
         $response = $this
             ->actingAs($user)
             ->from('/profile')
             ->delete('/profile', [
-                'password' => 'wrong-password',
+                'password' => 'password',
             ]);
 
         $response
-            ->assertSessionHasErrorsIn('userDeletion', 'password')
+            ->assertSessionHasErrorsIn('userDeletion', 'zk_pin')
             ->assertRedirect('/profile');
 
         $this->assertNotNull($user->fresh());

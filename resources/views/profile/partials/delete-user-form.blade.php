@@ -24,44 +24,24 @@
             </h2>
 
             <p class="mt-1 text-sm text-gray-600">
-                @if(empty(auth()->user()->password) && !empty(auth()->user()->wallet_address ?? auth()->user()->sui_address))
-                    {{ __('Once your account is deleted, all of its resources and data will be permanently deleted. Please enter your 6-digit Nuance PIN to confirm you would like to permanently delete your Web3 account.') }}
-                @else
-                    {{ __('Once your account is deleted, all of its resources and data will be permanently deleted. Please enter your password to confirm you would like to permanently delete your account.') }}
-                @endif
+                {{ __('Once your account is deleted, all of its resources and data will be permanently deleted. Please enter your 6-digit Nuance PIN to confirm you would like to permanently delete your account.') }}
             </p>
 
-            @if(empty(auth()->user()->password) && !empty(auth()->user()->wallet_address ?? auth()->user()->sui_address))
-                <div class="mt-6">
-                    <x-input-label for="zk_pin" value="{{ __('Nuance PIN') }}" class="sr-only" />
+            <div class="mt-6">
+                <x-input-label for="zk_pin" value="{{ __('Nuance PIN') }}" class="sr-only" />
 
-                    <x-text-input
-                        id="zk_pin"
-                        name="zk_pin"
-                        type="password"
-                        inputmode="numeric"
-                        maxlength="6"
-                        class="mt-1 block w-3/4"
-                        placeholder="{{ __('Nuance PIN') }}"
-                    />
+                <x-text-input
+                    id="zk_pin"
+                    name="zk_pin"
+                    type="password"
+                    inputmode="numeric"
+                    maxlength="6"
+                    class="mt-1 block w-3/4"
+                    placeholder="{{ __('Nuance PIN') }}"
+                />
 
-                    <x-input-error :messages="$errors->userDeletion->get('zk_pin')" class="mt-2" />
-                </div>
-            @else
-                <div class="mt-6">
-                    <x-input-label for="password" value="{{ __('Password') }}" class="sr-only" />
-
-                    <x-text-input
-                        id="password"
-                        name="password"
-                        type="password"
-                        class="mt-1 block w-3/4"
-                        placeholder="{{ __('Password') }}"
-                    />
-
-                    <x-input-error :messages="$errors->userDeletion->get('password')" class="mt-2" />
-                </div>
-            @endif
+                <x-input-error :messages="$errors->userDeletion->get('zk_pin')" class="mt-2" />
+            </div>
 
             <div class="mt-6 flex justify-end">
                 <x-secondary-button x-on:click="$dispatch('close')">
